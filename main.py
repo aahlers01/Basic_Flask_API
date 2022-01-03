@@ -19,7 +19,6 @@ DELETED_STATUS_CODE = 204
 NOT_FOUND_STATUS_CODE = 404
 EXISTANT_RECORD_STATUS_CODE = 409
 
-
 # This is our Team model for database player table construction
 class TeamModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -49,7 +48,8 @@ class PlayerModel(db.Model):
 class StaffModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    team = db.Column(db.String(70), db.ForeignKey('team_model.name'), nullable=False)
+    team = db.Column(db.String(70), db.ForeignKey(
+        'team_model.name'), nullable=False)
     position = db.Column(db.String(40), nullable=False)
     years_on_team = db.Column(db.Integer, nullable=False, default=0)
 
@@ -57,8 +57,8 @@ class StaffModel(db.Model):
         return f"Staff(name = {name}, id = {id}, team = {team}, position = {position}, years_on_team = {years_on_team})"
 
 # This request parser tells us what arguments are required in any player data given
-#   This specific one is for put, if you are writing an update method where 
-#   you dont need all of these arguments, you should write another parser 
+#   This specific one is for put, if you are writing an update method where
+#   you dont need all of these arguments, you should write another parser
 #   for that method below
 team_put_args = reqparse.RequestParser()
 team_put_args.add_argument(
@@ -86,8 +86,8 @@ team_resource_fields = {
 }
 
 # This request parser tells us what arguments are required in any player data given
-#   This specific one is for put, if you are writing an update method where 
-#   you dont need all of these arguments, you should write another parser 
+#   This specific one is for put, if you are writing an update method where
+#   you dont need all of these arguments, you should write another parser
 #   for that method below
 players_put_args = reqparse.RequestParser()
 players_put_args.add_argument(
@@ -129,8 +129,8 @@ player_resource_fields = {
 }
 
 # This request parser tells us what arguments are required in any player data given
-#   This specific one is for put, if you are writing an update method where 
-#   you dont need all of these arguments, you should write another parser 
+#   This specific one is for put, if you are writing an update method where
+#   you dont need all of these arguments, you should write another parser
 #   for that method below
 staff_put_args = reqparse.RequestParser()
 staff_put_args.add_argument(
@@ -176,8 +176,9 @@ class Team(Resource):
         args = team_put_args.parse_args()
         team_record = TeamModel.query.filter_by(id=team_id).first()
         if team_record:
-            abort(EXISTANT_RECORD_STATUS_CODE, message="Team with given team ID already exists")
-        team = TeamModel(id=team_id, 
+            abort(EXISTANT_RECORD_STATUS_CODE,
+                  message="Team with given team ID already exists")
+        team = TeamModel(id=team_id,
                          name=args['name'],
                          owner=args['owner'],
                          year_formed=args['year_formed'])
@@ -190,18 +191,21 @@ class Team(Resource):
         args = team_patch_args.parse_args()
         team_record = TeamModel.query.filter_by(id=team_id).first()
         if team_record is None:
-            abort(NOT_FOUND_STATUS_CODE, message="Team with given ID does not exist...")
+            abort(NOT_FOUND_STATUS_CODE,
+                  message="Team with given ID does not exist...")
         if args['name'] is not None:
             # If the name of the team has changed
             #   find all of its players and staff and update the team they play/work for with the new name
             #   then update the name of the team to the new name
-            player_records = PlayerModel.query.filter_by(team=team_record.name).all()
-            staff_records = StaffModel.query.filter_by(team=team_record.name).all()
+            player_records = PlayerModel.query.filter_by(
+                team=team_record.name).all()
+            staff_records = StaffModel.query.filter_by(
+                team=team_record.name).all()
             team_record.name = args['name']
 
             for i in range(len(player_records)):
                 player_records[i].team = args['name']
-            
+
             for i in range(len(staff_records)):
                 staff_records[i].team = args['name']
 
@@ -216,10 +220,12 @@ class Team(Resource):
 
         # If team does not exist
         if team_record is None:
-            abort(NOT_FOUND_STATUS_CODE, message="Team with given ID does not exist")
-        
+            abort(NOT_FOUND_STATUS_CODE,
+                  message="Team with given ID does not exist")
+
         # Find all the players on the former team and make them free agents
-        player_records = PlayerModel.query.filter_by(team=team_record.name).all()
+        player_records = PlayerModel.query.filter_by(
+            team=team_record.name).all()
         for i in range(len(player_records)):
             player_records[i].team = "Free Agent"
 
@@ -231,7 +237,7 @@ class Team(Resource):
         db.session.delete(team_record)
         db.session.commit()
         return "", DELETED_STATUS_CODE
-    
+
 # The Player resource we are accessing
 class Player(Resource):
 
@@ -251,13 +257,15 @@ class Player(Resource):
 
         # If their is an existing player record
         if player_record:
-            abort(EXISTANT_RECORD_STATUS_CODE, message="Player with given ID already exists...")
+            abort(EXISTANT_RECORD_STATUS_CODE,
+                  message="Player with given ID already exists...")
 
         team_record = TeamModel.query.filter_by(name=args['team']).first()
 
         # If the player isnt a free agent and the team doesnt exist
         if args['team'] != "Free Agent" and team_record is None:
-            abort(NOT_FOUND_STATUS_CODE, message="Player cannot play for a team that doesnt exist...")
+            abort(NOT_FOUND_STATUS_CODE,
+                  message="Player cannot play for a team that doesnt exist...")
 
         # If the player isnt a free agent but the team exists
         if args['team'] != "Free Agent":
@@ -282,20 +290,24 @@ class Player(Resource):
     def patch(self, player_id):
         player_record = PlayerModel.query.filter_by(id=player_id).first()
         if player_record is None:
-            abort(NOT_FOUND_STATUS_CODE, message="Player with given ID does not exist")
+            abort(NOT_FOUND_STATUS_CODE,
+                  message="Player with given ID does not exist")
         args = players_patch_args.parse_args()
         if args['name'] is not None:
             player_record.name = args['name']
         if args['team'] is not None:
             # Find the records for the old and new teams
-            old_team_record = TeamModel.query.filter_by(name=player_record.team).first()
-            new_team_record = TeamModel.query.filter_by(name=args['team']).first()
+            old_team_record = TeamModel.query.filter_by(
+                name=player_record.team).first()
+            new_team_record = TeamModel.query.filter_by(
+                name=args['team']).first()
 
             # Check if new team exists
-            #   If the player's new team is 'Free Agent', 
+            #   If the player's new team is 'Free Agent',
             #   both of these statements will be skipped
             if new_team_record is None and args['team'] != "Free Agent":
-                abort(NOT_FOUND_STATUS_CODE, message="Player cannot play for a team that doesnt exist...")
+                abort(NOT_FOUND_STATUS_CODE,
+                      message="Player cannot play for a team that doesnt exist...")
             elif new_team_record:
                 # Add player to new team
                 new_team_record.num_players += 1
@@ -321,9 +333,11 @@ class Player(Resource):
     def delete(self, player_id):
         player_record = PlayerModel.query.filter_by(id=player_id).first()
         if player_record is None:
-            abort(NOT_FOUND_STATUS_CODE, message="Player with the given ID does not exist...")
+            abort(NOT_FOUND_STATUS_CODE,
+                  message="Player with the given ID does not exist...")
 
-        team_record = TeamModel.query.filter_by(name=player_record.team).first()
+        team_record = TeamModel.query.filter_by(
+            name=player_record.team).first()
 
         # If the player is not a free agent
         if team_record:
@@ -349,7 +363,7 @@ class Staff(Resource):
     def put(self, staff_id):
         args = staff_put_args.parse_args()
         staff_record = StaffModel.query.filter_by(id=staff_id).first()
-        
+
         if staff_record is not None:
             abort(409, message="Staff Member with given ID already exists...")
 
@@ -379,13 +393,16 @@ class Staff(Resource):
             staff_record.name = args['name']
         if args['team'] is not None:
             # Find the records for the old and new teams
-            old_team_record = TeamModel.query.filter_by(name=staff_record.team).first()
-            new_team_record = TeamModel.query.filter_by(name=args['team']).first()
+            old_team_record = TeamModel.query.filter_by(
+                name=staff_record.team).first()
+            new_team_record = TeamModel.query.filter_by(
+                name=args['team']).first()
 
             # Check if new team exists or if it is a nonexistant team
             if new_team_record is None:
-                abort(404, message="Staff member cannot work for a team that doesnt exist...")
-            
+                abort(
+                    404, message="Staff member cannot work for a team that doesnt exist...")
+
             # Add staff member to new team
             new_team_record.num_staff += 1
 
@@ -411,7 +428,7 @@ class Staff(Resource):
         # Subtract the staff member from their former team
         team_record = TeamModel.query.filter_by(name=staff_record.team).first()
         team_record.num_staff -= 1
-        
+
         db.session.delete(staff_record)
         db.session.commit()
 
@@ -427,7 +444,6 @@ class Staff(Resource):
 api.add_resource(Team, "/team/<int:team_id>")
 api.add_resource(Player, "/player/<int:player_id>")
 api.add_resource(Staff, "/staff/<int:staff_id>")
-
 
 # Here is where we run the server
 if __name__ == "__main__":
